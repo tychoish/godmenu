@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -26,6 +27,7 @@ type DMenuConfiguration struct {
 	ForegroundColor string
 	Font            string
 	CaseSensitive   bool
+	Sorted          bool
 }
 
 const (
@@ -79,8 +81,13 @@ func RunDMenu(ctx context.Context, opts Options) (string, error) {
 		args = append(args, "-i")
 	}
 
+	selections := opts.Selections
+	if conf.Sorted {
+		sort.Strings(selections)
+	}
+
 	cmd := exec.CommandContext(ctx, conf.Path, args...)
-	input := strings.TrimSpace(strings.Join(opts.Selections, "\n"))
+	input := strings.TrimSpace(strings.Join(selections, "\n"))
 	cmd.Stdin = bytes.NewBuffer([]byte(input))
 	selection, err := cmd.CombinedOutput()
 	out := strings.TrimSpace(string(selection))
