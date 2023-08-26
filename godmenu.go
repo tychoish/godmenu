@@ -5,11 +5,14 @@ package godmenu
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
 	"strings"
 )
+
+var ErrNoSelection = errors.New("no selection")
 
 // Options defines an DMenu operation.
 type Options struct {
@@ -26,14 +29,30 @@ type DMenuConfiguration struct {
 	BackgroundColor string
 	ForegroundColor string
 	Font            string
+	Prompt          string
 	CaseSensitive   bool
 	Sorted          bool
+	Bottom          bool
+	Lines           int
+	Monitor         Optional[int]
+	WindowID        Optional[int]
 }
+
+type Optional[T int] struct {
+	v       T
+	defined bool
+}
+
+func NewOptional[T int](in T) Optional[T]  { return Optional[T]{v: in, defined: true} }
+func (o Optional[T]) Set(in T) Optional[T] { o.defined = true; o.v = in; return o }
+func (o Optional[T]) Reset() Optional[T]   { return Optional[T]{} }
+func (o Optional[T]) Resolve() T           { return o.v }
+func (o Optional[T]) OK() bool             { return o.defined }
 
 const (
 	DefaultBackgroundColor = "#000000"
 	DefaultForegroundColor = "#ffffff"
-	DefaultFount           = "Source Code Pro-11"
+	DefaultFount           = "Source Code Pro-12"
 	DefaultDmenuPath       = "dmenu"
 )
 
@@ -81,6 +100,26 @@ func RunDMenu(ctx context.Context, opts Options) (string, error) {
 		args = append(args, "-i")
 	}
 
+	if conf.Bottom {
+		args = append(args, "-b")
+	}
+
+	if conf.Prompt != "" {
+		args = append(args, "-p", conf.Prompt)
+	}
+
+	if conf.Lines > 0 {
+		args = append(args, "-l", fmt.Sprint(conf.Lines))
+	}
+
+	if conf.Monitor.OK() {
+		args = append(args, "-m", fmt.Sprint(conf.Monitor.Resolve()))
+	}
+
+	if conf.WindowID.OK() {
+		args = append(args, "-w", fmt.Sprint(conf.WindowID.Resolve()))
+	}
+
 	selections := opts.Selections
 	if conf.Sorted {
 		sort.Strings(selections)
@@ -91,9 +130,9 @@ func RunDMenu(ctx context.Context, opts Options) (string, error) {
 	cmd.Stdin = bytes.NewBuffer([]byte(input))
 	selection, err := cmd.CombinedOutput()
 	out := strings.TrimSpace(string(selection))
+
 	if err != nil {
 		return "", fmt.Errorf("dmenu failed [%s]: %w", out, err)
 	}
-
 	return strings.TrimSpace(string(out)), nil
 }
