@@ -9,7 +9,7 @@ import (
 func TestDmenu(t *testing.T) {
 	t.Run("Set", func(t *testing.T) {
 		t.Run("CheckNilSafe", func(t *testing.T) {
-			var st set
+			var st *set
 			if st != nil {
 				t.Fatal("expected nil")
 			}
@@ -20,8 +20,7 @@ func TestDmenu(t *testing.T) {
 		})
 		t.Run("ExistanceChecks", func(t *testing.T) {
 			st := set{}
-			st.add("one")
-			st.add("two")
+			st.init([]string{"one", "two"})
 			t.Log(st)
 			if !st.check("one") {
 				t.Fail()
@@ -32,9 +31,9 @@ func TestDmenu(t *testing.T) {
 		})
 		t.Run("Extend", func(t *testing.T) {
 			st := set{}
-			st.extend([]string{"one", "one", "two"})
-			t.Log(len(st), st)
-			if len(st) != 2 {
+			st.init([]string{"one", "one", "two"})
+			t.Log(st.Len(), st.items, st.set)
+			if st.Len() != 2 {
 				t.Fail()
 			}
 			if !st.check("one") || !st.check("two") {
@@ -46,7 +45,7 @@ func TestDmenu(t *testing.T) {
 		t.Run("CommandOutput", func(t *testing.T) {
 			t.Run("Trim", func(t *testing.T) {
 				s := set{}
-				s.add("abc def")
+				s.init([]string{"abc def"})
 
 				out, err := s.processOutput([]byte(" abc def \n"), nil)
 				t.Log("out", out, "err", err)
@@ -56,7 +55,7 @@ func TestDmenu(t *testing.T) {
 			})
 			t.Run("Passthrough", func(t *testing.T) {
 				s := set{}
-				s.add("abc def")
+				s.init([]string{"abc def"})
 
 				out, err := s.processOutput([]byte(" abc def \n"), context.Canceled)
 				t.Log("out", out, "err", err)
@@ -67,23 +66,23 @@ func TestDmenu(t *testing.T) {
 		})
 		t.Run("Selections", func(t *testing.T) {
 			t.Run("Sorted", func(t *testing.T) {
-				stdin := renderSelections(true, []string{"abc", "def", "111", "999"})
+				stdin := string(newset([]string{"abc", "def", "111", "999"}).rendered(true))
 				t.Log(stdin)
 				if stdin != "111\n999\nabc\ndef" {
 					t.Fail()
 				}
 			})
 			t.Run("InOrder", func(t *testing.T) {
-				stdin := renderSelections(false, []string{"abc", "def", "111", "999\n"})
+				stdin := string(newset([]string{"abc", "def", "111", "999\n"}).rendered(false))
 				t.Log(stdin)
 				if stdin != "abc\ndef\n111\n999" {
 					t.Fail()
 				}
 			})
 			t.Run("Trim", func(t *testing.T) {
-				stdin := renderSelections(false, []string{" abc\n", " def \n", "\n111 ", "999"})
+				stdin := string(newset([]string{" abc\n", " def \n", "\n111 ", "999"}).rendered(true))
 				t.Log(stdin)
-				if stdin != "abc\ndef\n111\n999" {
+				if stdin != "111\n999\nabc\ndef" {
 					t.Fail()
 				}
 
@@ -94,13 +93,10 @@ func TestDmenu(t *testing.T) {
 	})
 	t.Run("ProcessOutput", func(t *testing.T) {
 		t.Run("PermissiveMode", func(t *testing.T) {
-			var st set
-
-			if st != nil {
-				t.Fatal("expected nil")
-			}
+			var st *set
 
 			t.Run("WithoutError", func(t *testing.T) {
+				st = newset([]string{"hello"})
 				out, err := st.processOutput([]byte("hello"), nil)
 
 				t.Log(out, err)
@@ -137,7 +133,7 @@ func TestDmenu(t *testing.T) {
 		})
 		t.Run("StrictMode", func(t *testing.T) {
 			st := set{}
-			st.add("one")
+			st.init([]string{"one"})
 
 			t.Run("SelectionExists", func(t *testing.T) {
 				out, err := st.processOutput([]byte("one"), nil)
@@ -178,7 +174,7 @@ func TestDmenu(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				out, err := RunDMenu(ctx, Operation{Strict: true})
+				out, err := Do(ctx, Configuration{})
 				t.Log(out, err)
 				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
@@ -188,7 +184,7 @@ func TestDmenu(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				out, err := RunDMenu(ctx, Operation{Selections: []string{"a", "a", "b"}, Strict: true})
+				out, err := Do(ctx, Configuration{Selections: []string{"a", "a", "b"}})
 				t.Log(out, err)
 				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
@@ -198,7 +194,7 @@ func TestDmenu(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				out, err := RunDMenu(ctx, Operation{Selections: []string{"", "a", "b"}, Strict: true})
+				out, err := Do(ctx, Configuration{Selections: []string{"", "a", "b"}})
 				t.Log(out, err)
 				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
@@ -210,7 +206,7 @@ func TestDmenu(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				out, err := RunDMenu(ctx, Operation{Strict: true})
+				out, err := Do(ctx, Configuration{})
 				t.Log(out, err)
 				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
@@ -220,7 +216,7 @@ func TestDmenu(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				out, err := RunDMenu(ctx, Operation{Selections: []string{"a", "a", "b"}, Strict: true})
+				out, err := Do(ctx, Configuration{Selections: []string{"a", "a", "b"}})
 				t.Log(out, err)
 				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
@@ -230,7 +226,7 @@ func TestDmenu(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				out, err := RunDMenu(ctx, Operation{Selections: []string{"", "a", "b"}, Strict: true})
+				out, err := Do(ctx, Configuration{Selections: []string{"", "a", "b"}})
 				t.Log(out, err)
 				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()

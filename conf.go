@@ -2,91 +2,92 @@ package godmenu
 
 import "fmt"
 
-// Configuration defines how go-DMenu interacts with DMenu. You can either specify these arguments
-type Configuration struct {
-	Path            string
-	BackgroundColor string
-	Foreground      string
-	Font            string
-	Prompt          string
-	CaseSensitive   bool
-	Sorted          bool
-	Bottom          bool
-	Lines           int
-	Monitor         Optional[int]
-	WindowID        Optional[int]
+// Flags defines how go-DMenu interacts with DMenu. You can either specify these arguments
+type Flags struct {
+	Path               string
+	BackgroundColor    string
+	TextColor          string
+	SelectedBackground string
+	SelectedTextColor  string
+	Font               string
+	Prompt             string
+	CaseSensitive      bool
+	Bottom             bool
+	Lines              int
+	Monitor            int
+	WindowID           int
 }
 
-func (op *Operation) applyOptions(opts []Option) *Operation {
-	for _, opt := range opts {
-		opt(op)
-	}
-	return op
+type Option func(*Configuration)
+
+func MakeDefaultConfiguration() *Flags         { c := &Flags{}; c.fillDefault(); return c }
+func MakeOperation(s ...string) *Configuration { return &Configuration{Selections: s} }
+func WithConfiguration(n *Flags) Option        { return func(o *Configuration) { *o.Flags = *n } }
+func WithOperation(op *Configuration) Option   { return func(o *Configuration) { *o = *op } }
+func SetSelections(s []string) Option          { return func(o *Configuration) { o.Selections = s } }
+func AppendSelections(s []string) Option       { return func(o *Configuration) { o.extendSelections(s) } }
+func UnsetSelections() Option                  { return func(o *Configuration) { o.Selections = []string{} } }
+func TextColor(c string) Option                { return func(o *Configuration) { o.Flags.TextColor = c } }
+func BackgroundColor(c string) Option          { return func(o *Configuration) { o.Flags.BackgroundColor = c } }
+func SelectedText(c string) Option             { return func(o *Configuration) { o.Flags.SelectedTextColor = c } }
+func SelectedBackground(c string) Option {
+	return func(o *Configuration) { o.Flags.SelectedBackground = c }
 }
-
-type Option func(*Operation)
-
-func MakeDefaultConfiguration() *Configuration  { c := &Configuration{}; c.fillDefault(); return c }
-func MakeOperation(s ...string) *Operation      { return &Operation{Selections: s} }
-func WithConfiguration(n *Configuration) Option { return func(c *Operation) { *c.DMenu = *n } }
-func WithOperation(op *Operation) Option        { return func(c *Operation) { *c = *op } }
-func SetSelections(s []string) Option           { return func(c *Operation) { c.Selections = s } }
-func AppendSelections(s []string) Option        { return func(c *Operation) { c.extendSelections(s) } }
-func UnsetSelections() Option                   { return func(c *Operation) { c.Selections = []string{} } }
-func UseStrictMode() Option                     { return func(c *Operation) { c.Strict = true } }
-func SetStrict(v bool) Option                   { return func(c *Operation) { c.Strict = v } }
-func DMenuPath(p string) Option                 { return func(c *Operation) { c.DMenu.Path = p } }
-func DMenuBackground(cl string) Option          { return func(c *Operation) { c.DMenu.BackgroundColor = cl } }
-func DMenuTextColor(cl string) Option           { return func(c *Operation) { c.DMenu.Foreground = cl } }
-func DMenuCaseSensitive() Option                { return func(c *Operation) { c.DMenu.CaseSensitive = true } }
-func DMenuCaseInsensitive() Option              { return func(c *Operation) { c.DMenu.CaseSensitive = false } }
-func DMenuPrompt(p string) Option               { return func(c *Operation) { c.DMenu.Prompt = p } }
-func DMenuBottom() Option                       { return func(c *Operation) { c.DMenu.Bottom = true } }
-func DMenuTop() Option                          { return func(c *Operation) { c.DMenu.Bottom = false } }
-func DMenuSorted() Option                       { return func(c *Operation) { c.DMenu.Sorted = true } }
-func DMenuUnsorted() Option                     { return func(c *Operation) { c.DMenu.Sorted = false } }
-func DMenuLines(n int) Option                   { return func(c *Operation) { c.DMenu.Lines = n } }
-func DMenuMonitor(n int) Option                 { return func(c *Operation) { c.DMenu.Monitor.Set(n) } }
-func DMenuMonitorUnset() Option                 { return func(c *Operation) { c.DMenu.Monitor.Reset() } }
-func DMenuWindowID(n int) Option                { return func(c *Operation) { c.DMenu.WindowID.Set(n) } }
-func DMenuWindowIDUnset() Option                { return func(c *Operation) { c.DMenu.WindowID.Reset() } }
+func CaseSensitive() Option       { return func(o *Configuration) { o.Flags.CaseSensitive = true } }
+func CaseInsensitive() Option     { return func(o *Configuration) { o.Flags.CaseSensitive = false } }
+func DMenuPath(p string) Option   { return func(o *Configuration) { o.Flags.Path = p } }
+func DMenuPrompt(p string) Option { return func(o *Configuration) { o.Flags.Prompt = p } }
+func DMenuBottom() Option         { return func(o *Configuration) { o.Flags.Bottom = true } }
+func DMenuTop() Option            { return func(o *Configuration) { o.Flags.Bottom = false } }
+func Sorted() Option              { return func(o *Configuration) { o.Sorted = true } }
+func Unsorted() Option            { return func(o *Configuration) { o.Sorted = false } }
+func DMenuLines(n int) Option     { return func(o *Configuration) { o.Flags.Lines = n } }
+func DMenuMonitor(n int) Option   { return func(o *Configuration) { o.Flags.Monitor = n } }
+func DMenuMonitorUnset() Option   { return func(o *Configuration) { o.Flags.Monitor = -1 } }
+func DMenuWindowID(n int) Option  { return func(o *Configuration) { o.Flags.WindowID = n } }
+func DMenuWindowIDUnset() Option  { return func(o *Configuration) { o.Flags.WindowID = -1 } }
 
 const (
-	DefaultBackgroundColor = "#000000"
-	DefaultForegroundColor = "#ffffff"
-	DefaultFount           = "Source Code Pro-12"
-	DefaultDmenuPath       = "dmenu"
+	DefaultDMenuPath               = "dmenu"
+	DefaultFont                    = "Source Code Pro-12"
+	DefaultBackgroundColor         = "#000000"
+	DefaultTextColor               = "#ffffff"
+	DefaultSelectedBackgroundColor = "#005577"
+	DefaultSelectedTextColor       = "#ffffff"
 )
 
-var defaultDmenuConfig Configuration
+var defaultDmenuConfig Flags
 
 func init() { defaultDmenuConfig.fillDefault() }
 
 // fillDefault sets any unset fields in the DMenuConfiguration that
 // have the zero value. All of the default values are defined in
 // package constants.
-func (conf *Configuration) fillDefault() {
-	if conf.Path == "" {
-		conf.Path = DefaultDmenuPath
-	}
+func (conf *Flags) fillDefault() {
+	conf.Path = loadDefault(conf.Path, DefaultDMenuPath)
+	conf.BackgroundColor = loadDefault(conf.BackgroundColor, DefaultBackgroundColor)
+	conf.TextColor = loadDefault(conf.TextColor, DefaultTextColor)
+	conf.SelectedBackground = loadDefault(conf.SelectedBackground, DefaultSelectedBackgroundColor)
+	conf.SelectedTextColor = loadDefault(conf.SelectedTextColor, DefaultSelectedTextColor)
+	conf.Font = loadDefault(conf.Font, DefaultFont)
+	conf.WindowID = -1
+	conf.Monitor = -1
 
-	if conf.BackgroundColor == "" {
-		conf.BackgroundColor = DefaultBackgroundColor
-	}
-
-	if conf.Foreground == "" {
-		conf.Foreground = DefaultForegroundColor
-	}
-
-	if conf.Font == "" {
-		conf.Font = DefaultFount
-	}
 }
 
-func (conf Configuration) resolveArgs() []string {
+func loadDefault(currentValue, defaultValue string) string {
+	if currentValue == "" {
+		return defaultValue
+	}
+	return currentValue
+}
+
+func (conf Flags) args() []string {
 	args := []string{
 		"-nb", conf.BackgroundColor,
-		"-nf", conf.Foreground,
+		"-sb", conf.SelectedBackground,
+		"-nf", conf.TextColor,
+		"-sf", conf.SelectedTextColor,
 		"-fn", conf.Font,
 	}
 
@@ -106,12 +107,12 @@ func (conf Configuration) resolveArgs() []string {
 		args = append(args, "-l", fmt.Sprint(conf.Lines))
 	}
 
-	if conf.Monitor.OK() {
-		args = append(args, "-m", fmt.Sprint(conf.Monitor.Resolve()))
+	if conf.Monitor > -1 {
+		args = append(args, "-m", fmt.Sprint(conf.Monitor))
 	}
 
-	if conf.WindowID.OK() {
-		args = append(args, "-w", fmt.Sprint(conf.WindowID.Resolve()))
+	if conf.WindowID > -1 {
+		args = append(args, "-w", fmt.Sprint(conf.WindowID))
 	}
 
 	return args
