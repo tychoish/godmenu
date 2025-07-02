@@ -3,7 +3,6 @@ package godmenu
 import "fmt"
 
 // Configuration defines how go-DMenu interacts with DMenu. You can either specify these arguments
-
 type Configuration struct {
 	Path            string
 	BackgroundColor string
@@ -18,31 +17,39 @@ type Configuration struct {
 	WindowID        Optional[int]
 }
 
-func (c *Configuration) applyOptions(opts []Option) {
-	for _, op := range opts {
-		op(c)
+func (op *Operation) applyOptions(opts []Option) *Operation {
+	for _, opt := range opts {
+		opt(op)
 	}
+	return op
 }
 
-type Option func(*Configuration)
+type Option func(*Operation)
 
 func MakeDefaultConfiguration() *Configuration  { c := &Configuration{}; c.fillDefault(); return c }
-func WithConfiguration(n *Configuration) Option { return func(c *Configuration) { *c = *n } }
-func DMenuPath(p string) Option                 { return func(c *Configuration) { c.Path = p } }
-func DMenuBackground(cl string) Option          { return func(c *Configuration) { c.BackgroundColor = cl } }
-func DMenuTextColor(cl string) Option           { return func(c *Configuration) { c.Foreground = cl } }
-func DMenuCaseSensitive() Option                { return func(c *Configuration) { c.CaseSensitive = true } }
-func DMenuCaseInsensitive() Option              { return func(c *Configuration) { c.CaseSensitive = false } }
-func DMenuPrompt(p string) Option               { return func(c *Configuration) { c.Prompt = p } }
-func DMenuBottom() Option                       { return func(c *Configuration) { c.Bottom = true } }
-func DMenuTop() Option                          { return func(c *Configuration) { c.Bottom = false } }
-func DMenuSorted() Option                       { return func(c *Configuration) { c.Sorted = true } }
-func DMenuUnsorted() Option                     { return func(c *Configuration) { c.Sorted = false } }
-func DMenuLines(n int) Option                   { return func(c *Configuration) { c.Lines = n } }
-func DMenuMonitor(n int) Option                 { return func(c *Configuration) { c.Monitor.Set(n) } }
-func DMenuMonitorUnset() Option                 { return func(c *Configuration) { c.Monitor.Reset() } }
-func DMenuWindowID(n int) Option                { return func(c *Configuration) { c.WindowID.Set(n) } }
-func DMenuWindowIDUnset() Option                { return func(c *Configuration) { c.WindowID.Reset() } }
+func MakeOperation(s ...string) *Operation      { return &Operation{Selections: s} }
+func WithConfiguration(n *Configuration) Option { return func(c *Operation) { *c.DMenu = *n } }
+func WithOperation(op *Operation) Option        { return func(c *Operation) { *c = *op } }
+func SetSelections(s []string) Option           { return func(c *Operation) { c.Selections = s } }
+func AppendSelections(s []string) Option        { return func(c *Operation) { c.extendSelections(s) } }
+func UnsetSelections() Option                   { return func(c *Operation) { c.Selections = []string{} } }
+func UseStrictMode() Option                     { return func(c *Operation) { c.Strict = true } }
+func SetStrict(v bool) Option                   { return func(c *Operation) { c.Strict = v } }
+func DMenuPath(p string) Option                 { return func(c *Operation) { c.DMenu.Path = p } }
+func DMenuBackground(cl string) Option          { return func(c *Operation) { c.DMenu.BackgroundColor = cl } }
+func DMenuTextColor(cl string) Option           { return func(c *Operation) { c.DMenu.Foreground = cl } }
+func DMenuCaseSensitive() Option                { return func(c *Operation) { c.DMenu.CaseSensitive = true } }
+func DMenuCaseInsensitive() Option              { return func(c *Operation) { c.DMenu.CaseSensitive = false } }
+func DMenuPrompt(p string) Option               { return func(c *Operation) { c.DMenu.Prompt = p } }
+func DMenuBottom() Option                       { return func(c *Operation) { c.DMenu.Bottom = true } }
+func DMenuTop() Option                          { return func(c *Operation) { c.DMenu.Bottom = false } }
+func DMenuSorted() Option                       { return func(c *Operation) { c.DMenu.Sorted = true } }
+func DMenuUnsorted() Option                     { return func(c *Operation) { c.DMenu.Sorted = false } }
+func DMenuLines(n int) Option                   { return func(c *Operation) { c.DMenu.Lines = n } }
+func DMenuMonitor(n int) Option                 { return func(c *Operation) { c.DMenu.Monitor.Set(n) } }
+func DMenuMonitorUnset() Option                 { return func(c *Operation) { c.DMenu.Monitor.Reset() } }
+func DMenuWindowID(n int) Option                { return func(c *Operation) { c.DMenu.WindowID.Set(n) } }
+func DMenuWindowIDUnset() Option                { return func(c *Operation) { c.DMenu.WindowID.Reset() } }
 
 const (
 	DefaultBackgroundColor = "#000000"

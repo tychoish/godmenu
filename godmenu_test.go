@@ -45,16 +45,22 @@ func TestDmenu(t *testing.T) {
 	t.Run("Rendering", func(t *testing.T) {
 		t.Run("CommandOutput", func(t *testing.T) {
 			t.Run("Trim", func(t *testing.T) {
-				out, err := renderCommandOutput([]byte(" abc def \n"), nil)
-				t.Log(out, err)
+				s := set{}
+				s.add("abc def")
+
+				out, err := s.processOutput([]byte(" abc def \n"), nil)
+				t.Log("out", out, "err", err)
 				if err != nil || out != "abc def" {
 					t.Fail()
 				}
 			})
 			t.Run("Passthrough", func(t *testing.T) {
-				out, err := renderCommandOutput([]byte(" abc def \n"), context.Canceled)
-				t.Log(out, err)
-				if err != context.Canceled || out != "abc def" {
+				s := set{}
+				s.add("abc def")
+
+				out, err := s.processOutput([]byte(" abc def \n"), context.Canceled)
+				t.Log("out", out, "err", err)
+				if !errors.Is(err, context.Canceled) || out != "" {
 					t.Fail()
 				}
 			})
@@ -95,7 +101,8 @@ func TestDmenu(t *testing.T) {
 			}
 
 			t.Run("WithoutError", func(t *testing.T) {
-				out, err := st.processOutput("hello", nil)
+				out, err := st.processOutput([]byte("hello"), nil)
+
 				t.Log(out, err)
 
 				if err != nil && out != "hello" {
@@ -104,7 +111,7 @@ func TestDmenu(t *testing.T) {
 
 			})
 			t.Run("Error", func(t *testing.T) {
-				out, err := st.processOutput("hello", context.Canceled)
+				out, err := st.processOutput([]byte("hello"), context.Canceled)
 				t.Log(out, err)
 
 				if !errors.Is(err, context.Canceled) && out != "" {
@@ -112,7 +119,15 @@ func TestDmenu(t *testing.T) {
 				}
 			})
 			t.Run("EmptyOutput", func(t *testing.T) {
-				out, err := st.processOutput("", context.Canceled)
+				out, err := st.processOutput([]byte(""), context.Canceled)
+				t.Log(out, err)
+
+				if !errors.Is(err, ErrSelectionMissing) && !errors.Is(err, context.Canceled) && out != "" {
+					t.Fail()
+				}
+			})
+			t.Run("NilOutput", func(t *testing.T) {
+				out, err := st.processOutput(nil, context.Canceled)
 				t.Log(out, err)
 
 				if !errors.Is(err, ErrSelectionMissing) && !errors.Is(err, context.Canceled) && out != "" {
@@ -125,14 +140,22 @@ func TestDmenu(t *testing.T) {
 			st.add("one")
 
 			t.Run("SelectionExists", func(t *testing.T) {
-				out, err := st.processOutput("one", nil)
+				out, err := st.processOutput([]byte("one"), nil)
 				t.Log(out, err)
 				if err != nil && out != "" {
 					t.Fail()
 				}
 			})
 			t.Run("NoOutput", func(t *testing.T) {
-				out, err := st.processOutput("", nil)
+				out, err := st.processOutput([]byte(""), nil)
+				t.Log(out, err)
+
+				if !errors.Is(err, ErrSelectionMissing) && out != "" {
+					t.Fail()
+				}
+			})
+			t.Run("NilOutput", func(t *testing.T) {
+				out, err := st.processOutput(nil, nil)
 				t.Log(out, err)
 
 				if !errors.Is(err, ErrSelectionMissing) && out != "" {
@@ -140,7 +163,7 @@ func TestDmenu(t *testing.T) {
 				}
 			})
 			t.Run("SelectionMissing", func(t *testing.T) {
-				out, err := st.processOutput("two", nil)
+				out, err := st.processOutput([]byte("two"), nil)
 				t.Log(out, err)
 
 				if !errors.Is(err, ErrSelectionUnknown) && out != "" {
@@ -150,15 +173,71 @@ func TestDmenu(t *testing.T) {
 		})
 	})
 	t.Run("Integration", func(t *testing.T) {
-		t.Run("StrictEmpty", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+		t.Run("Strict", func(t *testing.T) {
+			t.Run("Empty", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
 
-			out, err := RunDMenu(ctx, Options{Strict: true})
-			t.Log(out, err)
-			if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
-				t.Fail()
-			}
+				out, err := RunDMenu(ctx, Operation{Strict: true})
+				t.Log(out, err)
+				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+					t.Fail()
+				}
+			})
+			t.Run("Duplicates", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				out, err := RunDMenu(ctx, Operation{Selections: []string{"a", "a", "b"}, Strict: true})
+				t.Log(out, err)
+				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+					t.Fail()
+				}
+			})
+			t.Run("ZeroString", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				out, err := RunDMenu(ctx, Operation{Selections: []string{"", "a", "b"}, Strict: true})
+				t.Log(out, err)
+				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+					t.Fail()
+				}
+			})
 		})
+		t.Run("NonStrict", func(t *testing.T) {
+			t.Run("Empty", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				out, err := RunDMenu(ctx, Operation{Strict: true})
+				t.Log(out, err)
+				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+					t.Fail()
+				}
+			})
+			t.Run("Duplicates", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				out, err := RunDMenu(ctx, Operation{Selections: []string{"a", "a", "b"}, Strict: true})
+				t.Log(out, err)
+				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+					t.Fail()
+				}
+			})
+			t.Run("ZeroString", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				out, err := RunDMenu(ctx, Operation{Selections: []string{"", "a", "b"}, Strict: true})
+				t.Log(out, err)
+				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+					t.Fail()
+				}
+			})
+
+		})
+
 	})
 }

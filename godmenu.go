@@ -32,9 +32,11 @@ type Operation struct {
 	Strict bool
 }
 
+func (op *Operation) extendSelections(s []string) { op.Selections = append(op.Selections, s...) }
+
 func Run(ctx context.Context, opts ...Option) (string, error) {
 	conf := Operation{}
-	conf.DMenu.applyOptions(opts)
+	conf.applyOptions(opts)
 	return RunDMenu(ctx, conf)
 }
 
@@ -44,20 +46,20 @@ func (s set) add(key string) { s[key] = struct{}{} }
 
 func (s set) extend(keys []string) {
 	for _, k := range keys {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
 		s.add(k)
 	}
 }
 
 func (s set) check(key string) bool {
-	if s == nil {
+	if s == nil || key == "" {
 		return false
 	}
 	_, ok := s[key]
 	return ok
-}
-
-func renderCommandOutput(data []byte, err error) (string, error) {
-	return string(bytes.TrimSpace(data)), err
 }
 
 func renderSelections(shouldSort bool, in []string) string {
@@ -70,16 +72,20 @@ func renderSelections(shouldSort bool, in []string) string {
 	return strings.Join(in, "\n")
 }
 
-func (s set) processOutput(out string, err error) (string, error) {
+func (s set) processOutput(data []byte, err error) (string, error) {
+	out := string(bytes.TrimSpace(data))
+
 	switch {
-	case s != nil && out != "" && !s.check(out):
-		return "", errors.Join(fmt.Errorf("selection %q", out), ErrSelectionUnknown)
-	case out == "":
-		return "", errors.Join(err, ErrSelectionMissing)
+	case err != nil:
+		return "", fmt.Errorf("dmenu failed [%s]: %w", out, err)
+	case len(data) == 0:
+		return "", ErrSelectionMissing
+	case s != nil && !s.check(out):
+		return "", fmt.Errorf("%w: %q", ErrSelectionUnknown, out)
 	case err == nil:
 		return out, nil
 	default:
-		return "", fmt.Errorf("dmenu failed [%s]: %w", out, err)
+		panic("unreachable")
 	}
 }
 
@@ -91,6 +97,7 @@ func RunDMenu(ctx context.Context, opts Operation) (string, error) {
 	if opts.DMenu != nil {
 		conf = *opts.DMenu
 	}
+
 	if opts.Strict && len(opts.Selections) == 0 {
 		return "", fmt.Errorf("must specify selections in strict mode: %w", ErrConfigurationInvalid)
 	}
@@ -99,11 +106,14 @@ func RunDMenu(ctx context.Context, opts Operation) (string, error) {
 	if opts.Strict {
 		selections = make(set, len(opts.Selections))
 		selections.extend(opts.Selections)
+		if len(selections) != len(opts.Selections) {
+			return "", fmt.Errorf("duplicate selections: %w", ErrConfigurationInvalid)
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, conf.Path, conf.resolveArgs()...)
 
 	cmd.Stdin = bytes.NewBuffer([]byte(renderSelections(conf.Sorted, opts.Selections)))
 
-	return selections.processOutput(renderCommandOutput(cmd.CombinedOutput()))
+	return selections.processOutput(cmd.CombinedOutput())
 }
