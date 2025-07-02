@@ -65,7 +65,9 @@ func (op *Configuration) flags() {
 	if op.Flags == nil {
 		conf := defaultDmenuConfig
 		op.Flags = &conf
+
 	}
+	op.Flags.fillDefault()
 }
 
 func (op *Configuration) resolve(opts []Option) *Configuration {

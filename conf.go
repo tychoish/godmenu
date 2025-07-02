@@ -76,10 +76,10 @@ func (conf *Flags) fillDefault() {
 }
 
 func loadDefault(currentValue, defaultValue string) string {
-	if currentValue == "" {
-		return defaultValue
-	}
+	if currentValue != "" {
 	return currentValue
+	}
+		return defaultValue
 }
 
 func (conf Flags) args() []string {
