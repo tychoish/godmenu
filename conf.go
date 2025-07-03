@@ -185,6 +185,18 @@ func (conf Flags) args() []string {
 		args = append(args, "-b")
 	}
 
+	if conf.Lines > 0 {
+		args = append(args, "-l", fmt.Sprint(conf.Lines))
+	}
+
+	if conf.Font != "" {
+		args = append(args, "-fn", conf.Font)
+	}
+
+	if conf.Prompt != "" {
+		args = append(args, "-p", conf.Prompt)
+	}
+
 	if conf.BackgroundColor != "" {
 		args = append(args, "-nb", conf.BackgroundColor)
 	}
@@ -199,18 +211,6 @@ func (conf Flags) args() []string {
 
 	if conf.SelectedTextColor != "" {
 		args = append(args, "-sf", conf.SelectedTextColor)
-	}
-
-	if conf.Font != "" {
-		args = append(args, "-fn", conf.Font)
-	}
-
-	if conf.Prompt != "" {
-		args = append(args, "-p", conf.Prompt)
-	}
-
-	if conf.Lines > 0 {
-		args = append(args, "-l", fmt.Sprint(conf.Lines))
 	}
 
 	if conf.Monitor > -1 {

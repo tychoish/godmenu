@@ -41,6 +41,7 @@ func ResolveOptions(arg ...Arg) *Options { return newop().resolve(arg) }
 func DefaultFlags() *Flags               { c := defaultDmenuConfig; return &c }
 func WithFlags(n Flags) Arg              { return func(o *Options) { o.Flags = &n } }
 func WithSelections(s ...string) Arg     { return ExtendSelections(s) }
+func Items(s ...string) Arg              { return ExtendSelections(s) }
 func ExtendSelections(s []string) Arg    { return func(o *Options) { o.extendSelections(s) } }
 func WithOptions(op *Options) Arg        { return func(o *Options) { *o = *op } }
 func SetSelections(s []string) Arg       { return func(o *Options) { o.Selections = s } }
