@@ -6,10 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os/exec"
-	"sort"
-	"strings"
 )
 
 var (
@@ -19,139 +16,49 @@ var (
 	ErrConfigurationInvalid = errors.New("invalid configuration")
 )
 
-// Run cals Do but takes its configuration as Option arguments.
-func Run(ctx context.Context, opts ...Option) (string, error) {
-	return Do(ctx, newop().resolve(opts).ref())
-}
-
 // Do shells out to dmenu with the given options and returns the
 // selected result. If there was a problem with the command, the error
 // is returned.
-func Do(ctx context.Context, opts Configuration) (string, error) {
-	opts.flags()
-
-	selections := opts.selections()
-
-	if err := selections.validate(); err != nil {
+func Do(ctx context.Context, opts Options) (string, error) {
+	selections, err := opts.validate()
+	if err != nil {
 		return "", err
 	}
 
 	cmd := exec.CommandContext(ctx, opts.Flags.Path, opts.Flags.args()...)
 
 	cmd.Stdin = bytes.NewBuffer(selections.rendered(opts.Sorted))
-
 	return selections.processOutput(cmd.CombinedOutput())
 }
 
-// Configuration defines an DMenu operation.
-type Configuration struct {
-	// Selections are the options presented to dmenu.
-	Selections []string
-	// Flags, which may be nil--resulting in the defaults defined
-	// in the godmenu package--describe the commandline options
-	// passed to DMenu.
-	Flags *Flags
-	// Sorted, when true, causes godmenu to sort the Selections
-	// before they're passed to DMenu.
-	Sorted bool
+// Run calls Do but takes its configuration as Args arguments.
+func Run(ctx context.Context, args ...Arg) (string, error) {
+	return Do(ctx, newop().resolve(args).ref())
 }
 
-func newop() *Configuration                           { return &Configuration{} }
-func (op *Configuration) extendSelections(s []string) { op.Selections = append(op.Selections, s...) }
-func (op *Configuration) selections() *set            { return newset(op.Selections) }
-func (op Configuration) ref() Configuration           { return op }
-
-func (op *Configuration) flags() {
-	if op.Flags == nil {
-		conf := defaultDmenuConfig
-		op.Flags = &conf
-
-	}
-	op.Flags.fillDefault()
-}
-
-func (op *Configuration) resolve(opts []Option) *Configuration {
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	return op
-}
-
-type set struct {
-	set   map[string]int
-	items []string
-}
-
-func newset(in []string) *set { s := &set{}; return s.init(in) }
-func (s *set) Len() int       { return len(s.set) }
-
-func (s *set) init(in []string) *set {
-	s.set = make(map[string]int, len(in))
-	s.items = in
-	for idx := range in {
-		k := strings.TrimSpace(s.items[idx])
-		if k == "" {
-			continue
-		}
-		s.set[k] = idx
-		s.items[idx] = k
-	}
-	return s
-}
-
-func (s *set) validate() error {
-	if len(s.items) == 0 {
-		return fmt.Errorf("must define selections: %w", ErrConfigurationInvalid)
-	}
-	if diff := len(s.items) - len(s.set); diff != 0 {
-		return fmt.Errorf("found %d duplicate selections: %w", diff, ErrConfigurationInvalid)
-	}
-	return nil
-}
-
-func (s *set) check(key string) bool {
-	if s == nil || s.set == nil || key == "" {
-		return false
-	}
-	_, ok := s.set[key]
-	return ok
-}
-
-func (s *set) rendered(shouldSort bool) []byte {
-	out := s.selections()
-	if shouldSort {
-		sort.Strings(out)
-	}
-	return []byte(strings.Join(out, "\n"))
-}
-
-func (s set) selections() []string {
-	out := make([]string, 0, len(s.set))
-	for idx := range s.items {
-		out = append(out, s.items[idx])
-	}
-	return out
-}
-
-func (s set) processOutput(data []byte, err error) (string, error) {
-	if err != nil {
-		return "", fmt.Errorf("dmenu failed [%s]: %w", string(data), err)
-	}
-
-	if len(data) == 0 {
-		return "", ErrSelectionMissing
-	}
-
-	out := string(bytes.TrimSpace(data))
-
-	if out == "" {
-		return "", ErrSelectionMissing
-	}
-
-	if !s.check(out) {
-		return "", fmt.Errorf("value %q was not provided: %w", out, ErrSelectionUnknown)
-	}
-
-	return out, nil
-}
+func MakeOptions(s ...string) *Options   { return newop().extendSelections(s).flags() }
+func ResolveOptions(arg ...Arg) *Options { return newop().resolve(arg) }
+func DefaultFlags() *Flags               { c := defaultDmenuConfig; return &c }
+func WithFlags(n Flags) Arg              { return func(o *Options) { o.Flags = &n } }
+func WithSelections(s ...string) Arg     { return ExtendSelections(s) }
+func ExtendSelections(s []string) Arg    { return func(o *Options) { o.extendSelections(s) } }
+func WithOptions(op *Options) Arg        { return func(o *Options) { *o = *op } }
+func SetSelections(s []string) Arg       { return func(o *Options) { o.Selections = s } }
+func ResetSelections() Arg               { return func(o *Options) { o.Selections = []string{} } }
+func Sorted() Arg                        { return func(o *Options) { o.Sorted = true } }
+func Unsorted() Arg                      { return func(o *Options) { o.Sorted = false } }
+func TextColor(c string) Arg             { return func(o *Options) { o.Flags.TextColor = c } }
+func BackgroundColor(c string) Arg       { return func(o *Options) { o.Flags.BackgroundColor = c } }
+func SelectedText(c string) Arg          { return func(o *Options) { o.Flags.SelectedTextColor = c } }
+func SelectedBgColor(c string) Arg       { return func(o *Options) { o.Flags.SelectedBgColor = c } }
+func CaseSensitive() Arg                 { return func(o *Options) { o.Flags.CaseSensitive = true } }
+func CaseInsensitive() Arg               { return func(o *Options) { o.Flags.CaseSensitive = false } }
+func DMenuPath(p string) Arg             { return func(o *Options) { o.Flags.Path = p } }
+func DMenuPrompt(p string) Arg           { return func(o *Options) { o.Flags.Prompt = p } }
+func DMenuBottom() Arg                   { return func(o *Options) { o.Flags.Bottom = true } }
+func DMenuTop() Arg                      { return func(o *Options) { o.Flags.Bottom = false } }
+func DMenuLines(n int) Arg               { return func(o *Options) { o.Flags.Lines = n } }
+func DMenuMonitor(n int) Arg             { return func(o *Options) { o.Flags.Monitor = n } }
+func DMenuMonitorUnset() Arg             { return func(o *Options) { o.Flags.Monitor = -1 } }
+func DMenuWindowID(n int) Arg            { return func(o *Options) { o.Flags.WindowID = n } }
+func DMenuWindowIDUnset() Arg            { return func(o *Options) { o.Flags.WindowID = -1 } }
