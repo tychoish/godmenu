@@ -56,7 +56,8 @@ func (op *Options) extendSelections(s []string) *Options {
 	return op
 }
 
-func (op *Options) resolve(opts []Arg) *Options {
+func (op *Options) apply(opts []Arg) *Options {
+	op = op.flags()
 	for _, opt := range opts {
 		op = op.with(opt)
 	}

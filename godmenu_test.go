@@ -3,7 +3,9 @@ package godmenu
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"testing"
+	"time"
 )
 
 func TestDmenu(t *testing.T) {
@@ -50,7 +52,7 @@ func TestDmenu(t *testing.T) {
 				out, err := s.processOutput([]byte(" abc def \n"), nil)
 				t.Log("out", out, "err", err)
 				if err != nil || out != "abc def" {
-					t.Fail()
+					t.Error(err)
 				}
 			})
 			t.Run("Passthrough", func(t *testing.T) {
@@ -60,7 +62,7 @@ func TestDmenu(t *testing.T) {
 				out, err := s.processOutput([]byte(" abc def \n"), context.Canceled)
 				t.Log("out", out, "err", err)
 				if !errors.Is(err, context.Canceled) || out != "" {
-					t.Fail()
+					t.Error(err)
 				}
 			})
 		})
@@ -171,30 +173,21 @@ func TestDmenu(t *testing.T) {
 	t.Run("Integration", func(t *testing.T) {
 		t.Run("Strict", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-
-				out, err := Do(ctx, Options{})
+				out, err := Do(t.Context(), Options{})
 				t.Logf("out=%q, err=%q", out, err)
 				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
 				}
 			})
 			t.Run("Duplicates", func(t *testing.T) {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-
-				out, err := Do(ctx, Options{Selections: []string{"a", "a", "b"}})
+				out, err := Do(t.Context(), Options{Selections: []string{"a", "a", "b"}})
 				t.Logf("out=%q, err=%q", out, err)
 				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
 				}
 			})
 			t.Run("ZeroString", func(t *testing.T) {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-
-				out, err := Do(ctx, Options{Selections: []string{"", "a", "b"}})
+				out, err := Do(t.Context(), Options{Selections: []string{"", "a", "b"}})
 				t.Logf("out=%q, err=%q", out, err)
 				if err == nil || !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
@@ -203,36 +196,73 @@ func TestDmenu(t *testing.T) {
 		})
 		t.Run("NonStrict", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-
-				out, err := Do(ctx, Options{})
+				out, err := Do(t.Context(), Options{})
 				t.Logf("out=%q, err=%q", out, err)
 				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
 				}
 			})
 			t.Run("Duplicates", func(t *testing.T) {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-
-				out, err := Do(ctx, Options{Selections: []string{"a", "a", "b"}})
+				out, err := Do(t.Context(), Options{Selections: []string{"a", "a", "b"}})
 				t.Logf("out=%q, err=%q", out, err)
 				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
 				}
 			})
 			t.Run("ZeroString", func(t *testing.T) {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-
-				out, err := Do(ctx, Options{Selections: []string{"", "a", "b"}})
+				out, err := Do(t.Context(), Options{Selections: []string{"", "a", "b"}})
 				t.Logf("out=%q, err=%q", out, err)
 				if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 					t.Fail()
 				}
 			})
 
+		})
+
+	})
+	t.Run("FunctionaArugments ", func(t *testing.T) {
+		t.Run("Duplicates", func(t *testing.T) {
+			out, err := Run(t.Context(), Selections("a", "a", "a", "a"), Sorted(), DMenuPrompt("godmenu =>>"))
+			t.Logf("out=%q, err=%q", out, err)
+			if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+				t.Fail()
+			}
+
+		})
+		t.Run("NoConfiguration", func(t *testing.T) {
+			out, err := Run(t.Context())
+			t.Logf("out=%q, err=%q", out, err)
+			if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+				t.Fail()
+			}
+		})
+
+		t.Run("NoConfiguration", func(t *testing.T) {
+			out, err := Run(t.Context())
+			t.Logf("out=%q, err=%q", out, err)
+			if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
+				t.Fail()
+			}
+		})
+		t.Run("Working", func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+			t.Cleanup(cancel)
+
+			out, err := Run(ctx, Items("a", "b", "c"))
+			t.Logf("out=%q, err=%q", out, err)
+
+			exerr := &exec.ExitError{}
+			if !errors.As(err, &exerr) {
+				t.Error(err)
+			}
+			// if it was signaled this is -1
+			if exerr.ExitCode() != -1 {
+				t.Error(exerr.ExitCode())
+			}
+
+			if out != "" {
+				t.Error(out)
+			}
 		})
 
 	})

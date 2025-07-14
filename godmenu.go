@@ -28,38 +28,37 @@ func Do(ctx context.Context, opts Options) (string, error) {
 	cmd := exec.CommandContext(ctx, opts.Flags.Path, opts.Flags.args()...)
 
 	cmd.Stdin = bytes.NewBuffer(selections.rendered(opts.Sorted))
+
 	return selections.processOutput(cmd.CombinedOutput())
 }
 
 // Run calls Do but takes its configuration as Args arguments.
-func Run(ctx context.Context, args ...Arg) (string, error) {
-	return Do(ctx, newop().resolve(args).ref())
-}
-
-func MakeOptions(s ...string) *Options   { return newop().extendSelections(s).flags() }
-func ResolveOptions(arg ...Arg) *Options { return newop().resolve(arg) }
-func DefaultFlags() *Flags               { c := defaultDmenuConfig; return &c }
-func WithFlags(n Flags) Arg              { return func(o *Options) { o.Flags = &n } }
-func WithSelections(s ...string) Arg     { return ExtendSelections(s) }
-func Items(s ...string) Arg              { return ExtendSelections(s) }
-func ExtendSelections(s []string) Arg    { return func(o *Options) { o.extendSelections(s) } }
-func WithOptions(op *Options) Arg        { return func(o *Options) { *o = *op } }
-func SetSelections(s []string) Arg       { return func(o *Options) { o.Selections = s } }
-func ResetSelections() Arg               { return func(o *Options) { o.Selections = []string{} } }
-func Sorted() Arg                        { return func(o *Options) { o.Sorted = true } }
-func Unsorted() Arg                      { return func(o *Options) { o.Sorted = false } }
-func TextColor(c string) Arg             { return func(o *Options) { o.Flags.TextColor = c } }
-func BackgroundColor(c string) Arg       { return func(o *Options) { o.Flags.BackgroundColor = c } }
-func SelectedText(c string) Arg          { return func(o *Options) { o.Flags.SelectedTextColor = c } }
-func SelectedBgColor(c string) Arg       { return func(o *Options) { o.Flags.SelectedBgColor = c } }
-func CaseSensitive() Arg                 { return func(o *Options) { o.Flags.CaseSensitive = true } }
-func CaseInsensitive() Arg               { return func(o *Options) { o.Flags.CaseSensitive = false } }
-func DMenuPath(p string) Arg             { return func(o *Options) { o.Flags.Path = p } }
-func DMenuPrompt(p string) Arg           { return func(o *Options) { o.Flags.Prompt = p } }
-func DMenuBottom() Arg                   { return func(o *Options) { o.Flags.Bottom = true } }
-func DMenuTop() Arg                      { return func(o *Options) { o.Flags.Bottom = false } }
-func DMenuLines(n int) Arg               { return func(o *Options) { o.Flags.Lines = n } }
-func DMenuMonitor(n int) Arg             { return func(o *Options) { o.Flags.Monitor = n } }
-func DMenuMonitorUnset() Arg             { return func(o *Options) { o.Flags.Monitor = -1 } }
-func DMenuWindowID(n int) Arg            { return func(o *Options) { o.Flags.WindowID = n } }
-func DMenuWindowIDUnset() Arg            { return func(o *Options) { o.Flags.WindowID = -1 } }
+func Run(ctx context.Context, args ...Arg) (string, error) { return Do(ctx, newop().apply(args).ref()) }
+func MakeOptions(s ...string) *Options                     { return newop().extendSelections(s).flags() }
+func ResolveOptions(arg ...Arg) *Options                   { return newop().apply(arg) }
+func DefaultFlags() *Flags                                 { c := defaultDmenuConfig; return &c }
+func WithFlags(n Flags) Arg                                { return func(o *Options) { o.Flags = &n } }
+func WithSelections(s ...string) Arg                       { return ExtendSelections(s) }
+func Items(s ...string) Arg                                { return ExtendSelections(s) }
+func Selections(s ...string) Arg                           { return ExtendSelections(s) }
+func ExtendSelections(s []string) Arg                      { return func(o *Options) { o.extendSelections(s) } }
+func WithOptions(op *Options) Arg                          { return func(o *Options) { *o = *op } }
+func SetSelections(s []string) Arg                         { return func(o *Options) { o.Selections = s } }
+func ResetSelections() Arg                                 { return func(o *Options) { o.Selections = []string{} } }
+func Sorted() Arg                                          { return func(o *Options) { o.Sorted = true } }
+func Unsorted() Arg                                        { return func(o *Options) { o.Sorted = false } }
+func TextColor(c string) Arg                               { return func(o *Options) { o.Flags.TextColor = c } }
+func BackgroundColor(c string) Arg                         { return func(o *Options) { o.Flags.BackgroundColor = c } }
+func SelectedText(c string) Arg                            { return func(o *Options) { o.Flags.SelectedTextColor = c } }
+func SelectedBgColor(c string) Arg                         { return func(o *Options) { o.Flags.SelectedBgColor = c } }
+func CaseSensitive() Arg                                   { return func(o *Options) { o.Flags.CaseSensitive = true } }
+func CaseInsensitive() Arg                                 { return func(o *Options) { o.Flags.CaseSensitive = false } }
+func DMenuPath(p string) Arg                               { return func(o *Options) { o.Flags.Path = p } }
+func DMenuPrompt(p string) Arg                             { return func(o *Options) { o.Flags.Prompt = p } }
+func DMenuBottom() Arg                                     { return func(o *Options) { o.Flags.Bottom = true } }
+func DMenuTop() Arg                                        { return func(o *Options) { o.Flags.Bottom = false } }
+func DMenuLines(n int) Arg                                 { return func(o *Options) { o.Flags.Lines = n } }
+func DMenuMonitor(n int) Arg                               { return func(o *Options) { o.Flags.Monitor = n } }
+func DMenuMonitorUnset() Arg                               { return func(o *Options) { o.Flags.Monitor = -1 } }
+func DMenuWindowID(n int) Arg                              { return func(o *Options) { o.Flags.WindowID = n } }
+func DMenuWindowIDUnset() Arg                              { return func(o *Options) { o.Flags.WindowID = -1 } }
