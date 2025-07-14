@@ -55,13 +55,7 @@ func (s *set) rendered(shouldSort bool) []byte {
 	return []byte(strings.Join(out, "\n"))
 }
 
-func (s set) selections() []string {
-	out := make([]string, 0, len(s.set))
-	for idx := range s.items {
-		out = append(out, s.items[idx])
-	}
-	return out
-}
+func (s set) selections() []string { return append(make([]string, 0, len(s.set)), s.items...) }
 
 func (s set) processOutput(data []byte, err error) (string, error) {
 	switch {

@@ -145,11 +145,8 @@ func possiblyValidColor(color string) bool {
 	}
 
 	_, err := strconv.ParseInt(color[1:], 16, 64)
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 // fillDefault sets any unset fields in the DMenuConfiguration that
