@@ -222,7 +222,7 @@ func TestDmenu(t *testing.T) {
 	})
 	t.Run("FunctionaArugments ", func(t *testing.T) {
 		t.Run("Duplicates", func(t *testing.T) {
-			out, err := Run(t.Context(), Selections("a", "a", "a", "a"), Sorted(), DMenuPrompt("godmenu =>>"))
+			out, err := Run(t.Context(), Selections("a", "a", "a", "a"), Sorted(), MenuPrompt("godmenu =>>"))
 			t.Logf("out=%q, err=%q", out, err)
 			if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 				t.Fail()
@@ -264,6 +264,5 @@ func TestDmenu(t *testing.T) {
 				t.Error(out)
 			}
 		})
-
 	})
 }

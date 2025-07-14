@@ -41,11 +41,12 @@ func WithFlags(n Flags) Arg                                { return func(o *Opti
 func WithSelections(s ...string) Arg                       { return ExtendSelections(s) }
 func Items(s ...string) Arg                                { return ExtendSelections(s) }
 func Selections(s ...string) Arg                           { return ExtendSelections(s) }
+func Prompt(p string) Arg                                  { return MenuPrompt(p) }
+func Sorted() Arg                                          { return func(o *Options) { o.Sorted = true } }
 func ExtendSelections(s []string) Arg                      { return func(o *Options) { o.extendSelections(s) } }
 func WithOptions(op *Options) Arg                          { return func(o *Options) { *o = *op } }
 func SetSelections(s []string) Arg                         { return func(o *Options) { o.Selections = s } }
 func ResetSelections() Arg                                 { return func(o *Options) { o.Selections = []string{} } }
-func Sorted() Arg                                          { return func(o *Options) { o.Sorted = true } }
 func Unsorted() Arg                                        { return func(o *Options) { o.Sorted = false } }
 func TextColor(c string) Arg                               { return func(o *Options) { o.Flags.TextColor = c } }
 func BackgroundColor(c string) Arg                         { return func(o *Options) { o.Flags.BackgroundColor = c } }
@@ -54,11 +55,11 @@ func SelectedBgColor(c string) Arg                         { return func(o *Opti
 func CaseSensitive() Arg                                   { return func(o *Options) { o.Flags.CaseSensitive = true } }
 func CaseInsensitive() Arg                                 { return func(o *Options) { o.Flags.CaseSensitive = false } }
 func DMenuPath(p string) Arg                               { return func(o *Options) { o.Flags.Path = p } }
-func DMenuPrompt(p string) Arg                             { return func(o *Options) { o.Flags.Prompt = p } }
-func DMenuBottom() Arg                                     { return func(o *Options) { o.Flags.Bottom = true } }
-func DMenuTop() Arg                                        { return func(o *Options) { o.Flags.Bottom = false } }
-func DMenuLines(n int) Arg                                 { return func(o *Options) { o.Flags.Lines = n } }
-func DMenuMonitor(n int) Arg                               { return func(o *Options) { o.Flags.Monitor = n } }
-func DMenuMonitorUnset() Arg                               { return func(o *Options) { o.Flags.Monitor = -1 } }
-func DMenuWindowID(n int) Arg                              { return func(o *Options) { o.Flags.WindowID = n } }
-func DMenuWindowIDUnset() Arg                              { return func(o *Options) { o.Flags.WindowID = -1 } }
+func MenuPrompt(p string) Arg                              { return func(o *Options) { o.Flags.Prompt = p } }
+func MenuBottom() Arg                                      { return func(o *Options) { o.Flags.Bottom = true } }
+func MenuTop() Arg                                         { return func(o *Options) { o.Flags.Bottom = false } }
+func MenuLines(n int) Arg                                  { return func(o *Options) { o.Flags.Lines = n } }
+func MenuMonitor(n int) Arg                                { return func(o *Options) { o.Flags.Monitor = n } }
+func MenuMonitorUnset() Arg                                { return func(o *Options) { o.Flags.Monitor = -1 } }
+func MenuWindowID(n int) Arg                               { return func(o *Options) { o.Flags.WindowID = n } }
+func MenuWindowIDUnset() Arg                               { return func(o *Options) { o.Flags.WindowID = -1 } }
