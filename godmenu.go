@@ -37,7 +37,7 @@ func Run(ctx context.Context, args ...Arg) (string, error) { return Do(ctx, newo
 func MakeOptions(s ...string) *Options                     { return newop().extendSelections(s).flags() }
 func ResolveOptions(arg ...Arg) *Options                   { return newop().apply(arg) }
 func DefaultFlags() *Flags                                 { c := defaultDmenuConfig; return &c }
-func WithFlags(n Flags) Arg                                { return func(o *Options) { o.Flags = &n } }
+func WithFlags(n *Flags) Arg                               { return func(o *Options) { o.Flags = n } }
 func WithSelections(s ...string) Arg                       { return ExtendSelections(s) }
 func Items(s ...string) Arg                                { return ExtendSelections(s) }
 func Selections(s ...string) Arg                           { return ExtendSelections(s) }
