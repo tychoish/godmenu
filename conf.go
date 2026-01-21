@@ -32,15 +32,32 @@ type Options struct {
 	// Sorted, when true, causes godmenu to sort the Selections
 	// before they're passed to DMenu.
 	Sorted bool
+	// AllowDuplicates
+	AllowDuplicates bool
+	// RequireMatch, when true requires that output of the dmenu
+	// operation is in the selections operation.
+	RequireMatch bool
+	// Transform takes the selection returned by the user, and modifies it before. This is
+	// useful for annotating messages or truncating longer messages.
+	Transform func(string) string
+	// ConfirmSubstitution instructs the application to display a second menu to confirm or
+	// modify the _actual_ selection.
+	ConfirmSubstitution bool
 }
 
 // Arg is a type for functional arguments.
 type Arg func(*Options)
 
 func newop() *Options                     { return &Options{} }
-func (op *Options) selections() *set      { return newset(op.Selections) }
 func (op Options) ref() Options           { return op }
 func (op *Options) with(opt Arg) *Options { opt(op); return op }
+
+func (op *Options) selections() *set {
+	return newset(op.Selections).
+		withRequireMatch(op.RequireMatch).
+		withTransform(op.Transform).
+		withAllowDuplicates(op.AllowDuplicates)
+}
 
 func (op *Options) flags() *Options {
 	if op.Flags == nil {
@@ -48,11 +65,6 @@ func (op *Options) flags() *Options {
 		op.Flags = &conf
 	}
 
-	return op
-}
-
-func (op *Options) extendSelections(s []string) *Options {
-	op.Selections = append(op.Selections, s...)
 	return op
 }
 
@@ -65,16 +77,27 @@ func (op *Options) apply(opts []Arg) *Options {
 	return op
 }
 
+func (op *Options) extendSelections(s []string) *Options {
+	op.Selections = append(op.Selections, s...)
+	return op
+}
+
 func (op *Options) validate() (*set, error) {
 	op.flags()
 	op.Flags.fillDefault()
 
-	errs := op.Flags.validate()
-
 	selections := op.selections()
 
-	if err := selections.validate(); err != nil {
-		errs = append(errs, err)
+	errs := []error{
+		op.Flags.validate(),
+		selections.validate(),
+	}
+	if op.RequireMatch && op.Transform != nil {
+		errs = append(errs, errors.New("the combination of the requireMatch option and transform function is ambiguous."))
+	}
+
+	if op.Transform == nil && op.ConfirmSubstitution {
+		errs = append(errs, errors.New("the confirmSubstitution option without the transform function is ambiguous."))
 	}
 
 	if err := errors.Join(errs...); err != nil {
@@ -102,7 +125,8 @@ type Flags struct {
 	WindowID          int
 }
 
-func (f *Flags) validate() (errs []error) {
+func (f *Flags) validate() error {
+	var errs []error
 	if _, err := exec.LookPath(f.Path); err != nil {
 		errs = append(errs, fmt.Errorf("could not find path %q to dmenu: %w", f.Path, err))
 	}
@@ -129,7 +153,7 @@ func (f *Flags) validate() (errs []error) {
 		errs = append(errs, fmt.Errorf("invalid X11 window id '%d'", f.WindowID))
 	}
 
-	return
+	return errors.Join(errs...)
 }
 
 func possiblyValidColor(color string) bool {
@@ -162,7 +186,6 @@ func (conf *Flags) fillDefault() {
 	conf.Font = loadDefault(conf.Font, DefaultFont)
 	conf.WindowID = -1
 	conf.Monitor = -1
-
 }
 
 func loadDefault(currentValue, defaultValue string) string {

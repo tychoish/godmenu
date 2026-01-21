@@ -10,10 +10,18 @@ import (
 type set struct {
 	set   map[string]int
 	items []string
+	conf  struct {
+		transform          func(string) string
+		allowMissingResult bool
+		allowDuplicates    bool
+	}
 }
 
-func newset(in []string) *set { s := &set{}; return s.init(in) }
-func (s *set) Len() int       { return len(s.set) }
+func newset(in []string) *set                            { s := &set{}; return s.init(in) }
+func (s *set) Len() int                                  { return len(s.set) }
+func (s *set) withRequireMatch(should bool) *set         { s.conf.allowMissingResult = !should; return s }
+func (s *set) withTransform(fn func(string) string) *set { s.conf.transform = fn; return s }
+func (s *set) withAllowDuplicates(should bool) *set      { s.conf.allowDuplicates = should; return s }
 
 func (s *set) init(in []string) *set {
 	s.set = make(map[string]int, len(in))
@@ -69,11 +77,15 @@ func (s set) processOutput(data []byte, err error) (string, error) {
 
 	out := string(bytes.TrimSpace(data))
 
+	if s.conf.transform != nil {
+		out = s.conf.transform(out)
+	}
+
 	if out == "" {
 		return "", ErrSelectionMissing
 	}
 
-	if !s.check(out) {
+	if !s.conf.allowMissingResult && !s.check(out) {
 		return "", fmt.Errorf("value %q was not provided: %w", out, ErrSelectionUnknown)
 	}
 

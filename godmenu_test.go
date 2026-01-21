@@ -87,11 +87,8 @@ func TestDmenu(t *testing.T) {
 				if stdin != "111\n999\nabc\ndef" {
 					t.Fail()
 				}
-
 			})
-
 		})
-
 	})
 	t.Run("ProcessOutput", func(t *testing.T) {
 		t.Run("PermissiveMode", func(t *testing.T) {
@@ -106,7 +103,6 @@ func TestDmenu(t *testing.T) {
 				if err != nil && out != "hello" {
 					t.Fail()
 				}
-
 			})
 			t.Run("Error", func(t *testing.T) {
 				out, err := st.processOutput([]byte("hello"), context.Canceled)
@@ -162,7 +158,7 @@ func TestDmenu(t *testing.T) {
 			})
 			t.Run("SelectionMissing", func(t *testing.T) {
 				out, err := st.processOutput([]byte("two"), nil)
-				t.Logf("out=%q, err=%q", out, err)
+				t.Logf("out=%q, err=%v", out, err)
 
 				if !errors.Is(err, ErrSelectionUnknown) && out != "" {
 					t.Fail()
@@ -216,9 +212,7 @@ func TestDmenu(t *testing.T) {
 					t.Fail()
 				}
 			})
-
 		})
-
 	})
 	t.Run("FunctionaArugments ", func(t *testing.T) {
 		t.Run("Duplicates", func(t *testing.T) {
@@ -227,7 +221,6 @@ func TestDmenu(t *testing.T) {
 			if !errors.Is(err, ErrConfigurationInvalid) || out != "" {
 				t.Fail()
 			}
-
 		})
 		t.Run("NoConfiguration", func(t *testing.T) {
 			out, err := Run(t.Context())
